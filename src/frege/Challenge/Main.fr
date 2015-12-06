@@ -1,0 +1,96 @@
+module Challenge.Main where
+
+import Data.List (lookup)
+
+-- type Entry = [String]
+-- type Account = String
+
+zero  = " _ | ||_|"
+one   = "     |  |"
+two   = " _  _||_ "
+three = " _  _| _|"
+four  = "   |_|  |"
+five  = " _ |_  _|"
+six   = " _ |_ |_|"
+seven = " _   |  |"
+eight = " _ |_||_|"
+nine  = " _ |_| _|"
+
+infixr 1 >>>
+(>>>) f g = g . f
+
+lookups :: [(String, String)]
+lookups = zipWith (,) [zero, one, two, three, four, five, six, seven, eight, nine]
+                      ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+
+toDigit :: String -> String
+toDigit glyph =
+  case lookup glyph lookups of
+    (Just d) -> d
+    Nothing -> "?"
+
+toGlyphs :: ([[Char]], [[Char]], [[Char]]) -> [[Char]]
+toGlyphs ([], _, _) = []
+toGlyphs (_, [], _) = []
+toGlyphs (_, _, []) = []
+toGlyphs (f:fs, s:ss, t:ts) = concat [f,s,t] : toGlyphs (fs, ss, ts)
+
+toAccount :: [String] -> String
+toAccount entry =
+  let firstThreeLines = take 3 entry
+      [f,s,t] = map (chunked 3 . unpacked) firstThreeLines
+      glyphs = toGlyphs (f,s,t)
+      digits = map (toDigit . packed) glyphs
+  in
+    concat digits
+
+toAccounts :: [String] -> [String]
+toAccounts = map toAccount . chunked 4
+
+isLegible :: String -> Bool
+isLegible account = (<0) $ String.indexOf account '?'
+
+isError :: String -> Bool
+isError = unpacked >>>
+          map (atoi . ctos) >>>
+          zipWith (*) [9,8..1] >>>
+          fold (+) 0 >>>
+          flip rem 11 >>>
+          (/= 0)
+
+myLength :: [Int] -> Int
+myLength = length
+
+parseAccountNumbers :: String -> IO [String]
+parseAccountNumbers fileName = do
+  reader <- openReader fileName
+  allLines <- BufferedReader.getLines reader
+  return $ toAccounts allLines
+
+data Status = Illegible
+            | Error
+            | OK
+
+status :: String -> Status
+status account | not $ isLegible account = Illegible
+               | isError account         = Error
+               | otherwise               = OK
+
+printRecord :: (String, Status) -> IO ()
+printRecord (account, status) = do
+  print account 
+  println "ARGH"
+  -- println $ case status of
+  --   Illegible = " ILLEGIBLE"
+  --   Error     = " ERROR"
+  --   _         = "" 
+
+-- printReport :: String -> [String] -> IO ()
+-- printReport :: [String] -> IO ()
+-- printReport accounts = do
+--   let records = map (\account -> (account, status account)) accounts 
+--   println records
+-- 
+-- main = do
+--   accounts <- parseAccountNumbers "/Users/Danielle/projects/personal/challenge/test/clojure/challenge/test_data.txt"
+--   println accounts
